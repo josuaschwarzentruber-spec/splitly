@@ -164,9 +164,20 @@ body{font-family:var(--sans);font-size:14px;color:var(--ink);-webkit-font-smooth
     <div id="sp2" style="display:none" class="fade-up">
       <div class="kicker" style="color:var(--green-mid);margin-bottom:5px">Schritt 2</div>
       <h2 class="serif" style="font-size:26px;margin-bottom:6px" id="sp2-q"></h2>
-      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:18px" id="sp-vote-desc">Tippe auf deine Wahl. Das Ergebnis ist erst nach deiner Stimme sichtbar.</p>
-      <div id="vote-area"></div>
-      <div style="text-align:center;margin-top:12px;font-size:11px;color:var(--muted)">3 von 3 haben abgestimmt</div>
+      <!-- Name entry -->
+      <div id="sp2-name-section">
+        <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px">Wie heißt du? Damit wir wissen, wer abgestimmt hat.</p>
+        <div style="display:flex;gap:8px;margin-bottom:6px">
+          <input class="inp" id="voter-name-inp" placeholder="Dein Name…" style="flex:1;margin-bottom:0" onkeydown="if(event.key==='Enter')confirmVoterName()"/>
+          <button class="btn btn-ink" style="width:auto;padding:0 20px;flex-shrink:0" onclick="confirmVoterName()">Weiter →</button>
+        </div>
+      </div>
+      <!-- Vote options (shown after name confirmed) -->
+      <div id="sp2-vote-section" style="display:none">
+        <div id="sp2-voter-chip" style="display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:13px;color:var(--muted)"></div>
+        <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:18px" id="sp-vote-desc">Tippe auf deine Wahl. Das Ergebnis ist erst nach deiner Stimme sichtbar.</p>
+        <div id="vote-area"></div>
+      </div>
     </div>
 
     <!-- Step 3 -->
@@ -391,18 +402,39 @@ function gsp(n){
     document.getElementById('sp2').classList.add('fade-up');
     const q=document.getElementById('q-inp').value;
     document.getElementById('sp2-q').textContent=q;
-    const opts=[...document.querySelectorAll('#opt-list .inp')].map(i=>i.value).filter(v=>v);
-    const area=document.getElementById('vote-area');area.innerHTML='';
+    // reset name section
+    document.getElementById('sp2-name-section').style.display='block';
+    document.getElementById('sp2-vote-section').style.display='none';
+    document.getElementById('voter-name-inp').value='';
     voted=false;
-    opts.forEach((o,i)=>{
-      const d=document.createElement('div');
-      d.style.cssText='background:var(--white);border:1.5px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .16s';
-      d.innerHTML=`<span style="font-size:20px;width:28px;text-align:center">${o.split(' ')[0]}</span><span style="font-size:13px;font-weight:500">${o}</span>`;
-      d.onclick=()=>castVote(i,opts);
-      area.appendChild(d);
-    });
+    // store options for use after name confirmed
+    window._spOpts=[...document.querySelectorAll('#opt-list .inp')].map(i=>i.value).filter(v=>v);
   }
   if(n===1){voted=false;}
+}
+function confirmVoterName(){
+  const name=document.getElementById('voter-name-inp').value.trim();
+  if(!name)return;
+  document.getElementById('sp2-name-section').style.display='none';
+  document.getElementById('sp2-vote-section').style.display='block';
+  const chip=document.getElementById('sp2-voter-chip');
+  const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  chip.innerHTML=`<div style="width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--bg);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">${initials}</div><span>Du stimmst als <strong>${name}</strong> ab</span>`;
+  const opts=window._spOpts||[];
+  const area=document.getElementById('vote-area');area.innerHTML='';
+  opts.forEach((o,i)=>{
+    const d=document.createElement('div');
+    d.style.cssText='background:var(--white);border:1.5px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .16s';
+    const firstChar=(o.trim()[0]||'');
+    const hasEmoji=firstChar.codePointAt(0)>127;
+    const icon=hasEmoji?o.split(' ')[0]:'';
+    const label=o;
+    d.innerHTML=`${icon?`<span style="font-size:20px;width:28px;text-align:center;flex-shrink:0">${icon}</span>`:''}<span style="font-size:13px;font-weight:500">${label}</span>`;
+    d.onmouseenter=()=>{d.style.borderColor='var(--ink)';};
+    d.onmouseleave=()=>{d.style.borderColor='var(--border)';};
+    d.onclick=()=>castVote(i,opts,name);
+    area.appendChild(d);
+  });
 }
 function addOpt(){
   const list=document.getElementById('opt-list');
