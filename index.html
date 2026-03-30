@@ -52,12 +52,48 @@ body{font-family:var(--sans);font-size:14px;color:var(--ink);-webkit-font-smooth
 .fade-up{animation:fadeUp .25s ease forwards}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <div class="app">
 
+<!-- AUTH -->
+<div id="s-auth" class="screen on">
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:32px 24px;max-width:430px;width:100%">
+    <div style="text-align:center;margin-bottom:44px">
+      <div class="serif" style="font-size:38px;letter-spacing:-.5px">Split<span style="color:var(--green-mid)">ly</span></div>
+      <div class="kicker" style="margin-top:5px">2 Tools. 1 App.</div>
+    </div>
+    <div id="auth-error" style="display:none;background:var(--red-light);color:var(--red);padding:10px 14px;border-radius:var(--r);font-size:12px;margin-bottom:10px;line-height:1.5"></div>
+    <input class="inp" id="auth-email" type="email" placeholder="E-Mail" autocomplete="email"/>
+    <input class="inp" id="auth-pass" type="password" placeholder="Passwort" autocomplete="current-password" onkeydown="if(event.key==='Enter')authSubmit()"/>
+    <button class="btn btn-ink" onclick="authSubmit()" id="auth-btn" style="margin-bottom:10px">Anmelden</button>
+    <button class="btn btn-outline" onclick="authToggle()" id="auth-toggle-btn">Noch kein Konto? Registrieren</button>
+    <div style="text-align:center;margin-top:14px">
+      <span id="auth-forgot" onclick="authForgot()" style="font-size:12px;color:var(--muted);cursor:pointer;text-decoration:underline">Passwort vergessen?</span>
+    </div>
+  </div>
+</div>
+
+<!-- USER SHEET -->
+<div id="user-sheet" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.45)" onclick="toggleUserSheet()">
+  <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:var(--white);border-radius:var(--rr) var(--rr) 0 0;padding:24px" onclick="event.stopPropagation()">
+    <div style="width:32px;height:3px;background:var(--border);border-radius:2px;margin:0 auto 20px"></div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+      <div id="user-sheet-av" style="width:40px;height:40px;border-radius:50%;background:var(--ink);color:var(--bg);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0"></div>
+      <div>
+        <div style="font-size:13px;font-weight:500" id="user-sheet-email"></div>
+        <div id="user-sheet-badge" style="font-size:10px;color:var(--muted);margin-top:2px">Free Plan</div>
+      </div>
+    </div>
+    <button class="btn btn-outline" onclick="nav('pro');toggleUserSheet()" style="margin-bottom:8px">✦ Pro werden</button>
+    <button class="btn" style="background:var(--red-light);color:var(--red);border:none;font-weight:500" onclick="signOut()">Abmelden</button>
+    <div style="height:max(0px,env(safe-area-inset-bottom))"></div>
+  </div>
+</div>
+
 <!-- HOME -->
-<div id="s-home" class="screen on">
+<div id="s-home" class="screen">
   <div style="flex:1;overflow-y:auto;padding:22px">
     <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:4px">
       <div>
@@ -66,7 +102,7 @@ body{font-family:var(--sans);font-size:14px;color:var(--ink);-webkit-font-smooth
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <button onclick="cycleLang(this)" style="font-size:11px;font-weight:500;padding:6px 12px;background:var(--stone);border-radius:20px;cursor:pointer;border:none;font-family:var(--sans);color:var(--muted)" id="lang-btn">🌍 DE</button>
-        <button onclick="nav('pro')" style="font-size:11px;font-weight:500;padding:6px 12px;background:var(--ink);border-radius:20px;cursor:pointer;border:none;font-family:var(--sans);color:var(--bg)">Pro ✦</button>
+        <button id="user-avatar-btn" onclick="toggleUserSheet()" style="width:32px;height:32px;border-radius:50%;background:var(--ink);color:var(--bg);font-size:11px;font-weight:700;border:none;cursor:pointer;font-family:var(--sans);flex-shrink:0">?</button>
       </div>
     </div>
     <div style="height:24px"></div>
@@ -651,6 +687,111 @@ function resetScan() {
   document.getElementById('receipt-inp').value = '';
 }
 
+// ── SUPABASE AUTH ─────────────────────────────────────────
+// Replace with your Supabase project URL and anon key
+const SUPABASE_URL='YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY='YOUR_SUPABASE_ANON_KEY';
+let sb=null;let currentUser=null;
+try{sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);}catch(e){}
+
+let authMode='signin';
+
+async function initAuth(){
+  if(!sb||SUPABASE_URL==='YOUR_SUPABASE_URL'){
+    // No Supabase configured — skip auth, show app directly
+    document.getElementById('s-auth').classList.remove('on');
+    document.getElementById('s-home').classList.add('on');
+    return;
+  }
+  try{
+    const{data:{session}}=await sb.auth.getSession();
+    if(session){currentUser=session.user;showMainApp();}
+    else{/* stay on auth screen */}
+    sb.auth.onAuthStateChange((_,session)=>{
+      currentUser=session?.user||null;
+      if(session&&document.getElementById('s-auth').classList.contains('on'))showMainApp();
+    });
+  }catch(e){
+    document.getElementById('s-auth').classList.remove('on');
+    document.getElementById('s-home').classList.add('on');
+  }
+}
+
+function showMainApp(){
+  document.getElementById('s-auth').classList.remove('on');
+  document.getElementById('s-home').classList.add('on');
+  const email=currentUser?.email||'';
+  const initials=email.split('@')[0].slice(0,2).toUpperCase()||'??';
+  document.getElementById('user-avatar-btn').textContent=initials;
+  document.getElementById('user-sheet-av').textContent=initials;
+  document.getElementById('user-sheet-email').textContent=email;
+}
+
+async function authSubmit(){
+  const email=document.getElementById('auth-email').value.trim();
+  const pass=document.getElementById('auth-pass').value;
+  const btn=document.getElementById('auth-btn');
+  if(!email||!pass){showAuthErr('Bitte E-Mail und Passwort eingeben.');return;}
+  btn.textContent='…';btn.disabled=true;
+  document.getElementById('auth-error').style.display='none';
+  let error;
+  if(authMode==='signin'){
+    ({error}=await sb.auth.signInWithPassword({email,password:pass}));
+  }else{
+    ({error}=await sb.auth.signUp({email,password:pass}));
+    if(!error){
+      showAuthErr('Bitte bestätige deine E-Mail, dann kannst du dich anmelden.');
+      btn.textContent='Anmelden';btn.disabled=false;return;
+    }
+  }
+  btn.textContent=authMode==='signin'?'Anmelden':'Registrieren';
+  btn.disabled=false;
+  if(error)showAuthErr(error.message);
+}
+
+function showAuthErr(msg){
+  const el=document.getElementById('auth-error');
+  el.textContent=msg;el.style.display='block';
+}
+
+function authToggle(){
+  authMode=authMode==='signin'?'signup':'signin';
+  const isUp=authMode==='signup';
+  document.getElementById('auth-btn').textContent=isUp?'Registrieren':'Anmelden';
+  document.getElementById('auth-toggle-btn').textContent=isUp?'Bereits registriert? Anmelden':'Noch kein Konto? Registrieren';
+  document.getElementById('auth-forgot').style.display=isUp?'none':'inline';
+  document.getElementById('auth-pass').autocomplete=isUp?'new-password':'current-password';
+  document.getElementById('auth-error').style.display='none';
+}
+
+async function authForgot(){
+  const email=document.getElementById('auth-email').value.trim();
+  if(!email){showAuthErr('Bitte zuerst E-Mail eingeben.');return;}
+  const{error}=await sb.auth.resetPasswordForEmail(email);
+  showAuthErr(error?error.message:'Reset-Link wurde gesendet ✓');
+}
+
+async function signOut(){
+  await sb?.auth.signOut();
+  currentUser=null;
+  document.getElementById('user-sheet').style.display='none';
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  document.getElementById('s-auth').classList.add('on');
+  document.getElementById('auth-error').style.display='none';
+  document.getElementById('auth-email').value='';
+  document.getElementById('auth-pass').value='';
+  authMode='signin';
+  document.getElementById('auth-btn').textContent='Anmelden';
+  document.getElementById('auth-toggle-btn').textContent='Noch kein Konto? Registrieren';
+  document.getElementById('auth-forgot').style.display='inline';
+}
+
+function toggleUserSheet(){
+  const s=document.getElementById('user-sheet');
+  s.style.display=s.style.display==='none'?'flex':'none';
+  if(s.style.display==='flex')s.style.alignItems='flex-end';
+}
+
 // ── INIT ──────────────────────────────────────────────────
 renderProFeats(T.DE.feats);
 renderPeople();
@@ -659,6 +800,7 @@ document.getElementById('bs2').style.display='none';
 document.getElementById('sp1').style.display='block';
 document.getElementById('sp2').style.display='none';
 document.getElementById('sp3').style.display='none';
+initAuth();
 </script>
 </body>
 </html>
