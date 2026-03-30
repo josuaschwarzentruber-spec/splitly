@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>Splitly</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#FAFAF7;--white:#FFFFFF;--ink:#0C0C0A;
+  --green:#0A6640;--green-mid:#1A9956;--green-light:#E8F5EE;
+  --amber:#C47D0E;--amber-light:#FEF3DC;
+  --red:#C0392B;--red-light:#FDEEEC;
+  --blue:#1A3A8F;--blue-light:#EEF3FF;
+  --stone:#F0EDE6;--border:#E2DED6;--muted:#8C8880;
+  --r:12px;--rr:20px;
+  --serif:'Instrument Serif',serif;
+  --sans:'Geist',sans-serif;
+}
+html,body{height:100%;background:var(--bg);overflow:hidden}
+body{font-family:var(--sans);font-size:14px;color:var(--ink);-webkit-font-smoothing:antialiased}
+.app{max-width:430px;margin:0 auto;height:100dvh;display:flex;flex-direction:column;background:var(--bg);position:relative}
+.screen{display:none;flex-direction:column;flex:1;overflow-y:auto;overflow-x:hidden}
+.screen.on{display:flex}
+.serif{font-family:var(--serif)}
+.kicker{font-size:9px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted)}
+.inp{width:100%;padding:13px 15px;border-radius:var(--r);border:1.5px solid var(--border);background:var(--white);font-size:14px;font-family:var(--sans);color:var(--ink);outline:none;transition:border-color .15s;margin-bottom:8px}
+.inp:focus{border-color:var(--ink)}
+.field-lbl{font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin:14px 0 7px}
+.btn{display:flex;align-items:center;justify-content:center;width:100%;padding:15px;border-radius:var(--r);border:none;font-size:14px;font-weight:500;cursor:pointer;font-family:var(--sans);transition:all .16s}
+.btn-ink{background:var(--ink);color:var(--bg)}
+.btn-ink:hover{opacity:.88}
+.btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--ink)}
+.btn-outline:hover{border-color:var(--ink)}
+.btn-green{background:var(--green-mid);color:#fff}
+.btn-sm{padding:10px 18px;width:auto;font-size:12px}
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--rr);padding:18px}
+.divider{border:none;border-top:1px solid var(--border);margin:16px 0}
+.bnav{display:flex;background:var(--white);border-top:1px solid var(--border);flex-shrink:0}
+.bni{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 0 max(14px,env(safe-area-inset-bottom));cursor:pointer}
+.bni-ic{font-size:20px}
+.bni-lb{font-size:8px;font-weight:500;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.bni.on .bni-lb{color:var(--ink)}
+.bni-dot{width:4px;height:4px;border-radius:50%;margin-top:1px}
+.bni.on .bni-dot{background:var(--ink)}
+.topbar{padding:20px 22px 0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.mem-chip{display:flex;align-items:center;gap:6px;padding:6px 11px;background:var(--white);border:1px solid var(--border);border-radius:20px;font-size:12px;font-weight:500}
+.mem-av{width:20px;height:20px;border-radius:50%;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{animation:fadeUp .25s ease forwards}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- HOME -->
+<div id="s-home" class="screen on">
+  <div style="flex:1;overflow-y:auto;padding:22px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:4px">
+      <div>
+        <div class="serif" style="font-size:26px;letter-spacing:-.5px">Split<span style="color:var(--green-mid)">ly</span></div>
+        <div class="kicker" style="margin-top:2px">2 Tools. 1 App.</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="cycleLang(this)" style="font-size:11px;font-weight:500;padding:6px 12px;background:var(--stone);border-radius:20px;cursor:pointer;border:none;font-family:var(--sans);color:var(--muted)" id="lang-btn">🌍 DE</button>
+        <button onclick="nav('pro')" style="font-size:11px;font-weight:500;padding:6px 12px;background:var(--ink);border-radius:20px;cursor:pointer;border:none;font-family:var(--sans);color:var(--bg)">Pro ✦</button>
+      </div>
+    </div>
+    <div style="height:24px"></div>
+    <div class="kicker" style="margin-bottom:10px" id="h-greeting">Guten Tag 👋</div>
+    <h1 class="serif" style="font-size:40px;line-height:1;letter-spacing:-1px;margin-bottom:8px">
+      <span id="h-tagline">Entscheiden.</span><br>
+      <span id="h-tagline2" style="font-style:italic;color:var(--green-mid)">Aufteilen.</span>
+    </h1>
+    <p id="h-sub" style="font-size:13px;color:var(--muted);line-height:1.65;margin-bottom:28px;max-width:280px">Zwei Probleme die du täglich hast — endlich gelöst. Einfach, schnell, für alle.</p>
+
+    <!-- Splithead tile -->
+    <div onclick="nav('split')" style="border-radius:var(--rr);padding:22px;background:var(--ink);color:var(--bg);cursor:pointer;margin-bottom:10px;position:relative;overflow:hidden;transition:transform .16s" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
+      <div class="kicker" style="color:rgba(250,250,247,.4);margin-bottom:10px" id="t1-kicker">Gruppenentscheid</div>
+      <div class="serif" style="font-size:24px;margin-bottom:6px" id="t1-name">Splithead</div>
+      <div style="font-size:12px;opacity:.65;line-height:1.5;max-width:220px" id="t1-desc">Gruppe einigt sich in Sekunden — kein Hin und Her mehr.</div>
+      <div style="display:inline-block;font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;border-radius:20px;background:rgba(255,255,255,.12);margin-top:12px" id="t1-badge">10 Entscheide / Tag gratis</div>
+      <div style="position:absolute;right:20px;bottom:20px;font-size:20px;opacity:.35">→</div>
+    </div>
+
+    <!-- Bill Split tile -->
+    <div onclick="nav('bill')" style="border-radius:var(--rr);padding:22px;background:var(--green-mid);color:#fff;cursor:pointer;margin-bottom:20px;position:relative;overflow:hidden;transition:transform .16s" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
+      <div class="kicker" style="color:rgba(255,255,255,.45);margin-bottom:10px" id="t2-kicker">Rechnungsteiler</div>
+      <div class="serif" style="font-size:24px;margin-bottom:6px" id="t2-name">Bill Split</div>
+      <div style="font-size:12px;opacity:.65;line-height:1.5;max-width:220px" id="t2-desc">Rechnung eingeben — Splitly teilt alles automatisch auf.</div>
+      <div style="display:inline-block;font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;border-radius:20px;background:rgba(255,255,255,.15);margin-top:12px" id="t2-badge">5 Abrechnungen / Monat gratis</div>
+      <div style="position:absolute;right:20px;bottom:20px;font-size:20px;opacity:.35">→</div>
+    </div>
+
+    <!-- Stats -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:22px">
+      <div class="card" style="text-align:center;padding:12px"><div class="serif" style="font-size:22px;margin-bottom:2px">2.4M</div><div class="kicker" id="stat1">Entscheide</div></div>
+      <div class="card" style="text-align:center;padding:12px"><div class="serif" style="font-size:22px;margin-bottom:2px">840k</div><div class="kicker" id="stat2">Rechnungen</div></div>
+      <div class="card" style="text-align:center;padding:12px"><div class="serif" style="font-size:22px;margin-bottom:2px">140+</div><div class="kicker" id="stat3">Länder</div></div>
+    </div>
+
+    <!-- Recent -->
+    <div class="kicker" style="margin-bottom:10px" id="h-recent">Zuletzt</div>
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">
+      <div style="width:38px;height:38px;border-radius:11px;background:var(--stone);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🍕</div>
+      <div style="flex:1"><div style="font-size:13px;font-weight:500">Wo essen wir?</div><div style="font-size:11px;color:var(--muted);margin-top:1px">vor 2 Std. · 3 Personen</div></div>
+      <div style="font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;background:var(--stone);color:var(--ink)">Fertig</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 0">
+      <div style="width:38px;height:38px;border-radius:11px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🧾</div>
+      <div style="flex:1"><div style="font-size:13px;font-weight:500">Abendessen — 4 Personen</div><div style="font-size:11px;color:var(--muted);margin-top:1px">CHF 23.50 pro Person</div></div>
+      <div style="font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;background:var(--green-light);color:var(--green)">Bezahlt</div>
+    </div>
+    <div style="height:20px"></div>
+  </div>
+  <nav class="bnav">
+    <div class="bni on" onclick="nav('home')"><span class="bni-ic">⌂</span><span class="bni-lb" id="nb-home">Home</span><div class="bni-dot"></div></div>
+    <div class="bni" onclick="nav('split')"><span class="bni-ic">🤝</span><span class="bni-lb" id="nb-split">Splithead</span><div class="bni-dot"></div></div>
+    <div class="bni" onclick="nav('bill')"><span class="bni-ic">🧾</span><span class="bni-lb" id="nb-bill">Bill Split</span><div class="bni-dot"></div></div>
+    <div class="bni" onclick="nav('pro')"><span class="bni-ic">✦</span><span class="bni-lb" id="nb-pro">Pro</span><div class="bni-dot"></div></div>
+  </nav>
+</div>
+
+<!-- SPLITHEAD -->
+<div id="s-split" class="screen">
+  <div style="flex:1;overflow-y:auto;padding:22px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:20px">
+      <button class="btn btn-outline btn-sm" onclick="nav('home')" style="width:auto">← <span id="sp-back">Zurück</span></button>
+      <div class="serif" style="font-size:19px" id="sp-title">Splithead</div>
+      <div style="font-size:11px;font-weight:500;color:var(--muted)">10/Tag</div>
+    </div>
+
+    <!-- Step 1 -->
+    <div id="sp1" class="fade-up">
+      <div style="background:var(--stone);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--muted);display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+        <span id="sp-limit">8 von 10 Entscheiden heute</span>
+        <span style="font-weight:600;color:var(--ink);cursor:pointer" onclick="nav('pro')" id="sp-unlimited">Unlimitiert →</span>
+      </div>
+      <div class="kicker" style="color:var(--green-mid);margin-bottom:5px" id="sp-new">Neuer Entscheid</div>
+      <h2 class="serif" style="font-size:26px;margin-bottom:6px" id="sp-q-title">Was wird entschieden?</h2>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:18px" id="sp-q-desc">Stelle eine Frage, füge Optionen hinzu und lade deine Gruppe ein.</p>
+      <input class="inp" id="q-inp" value="Wo essen wir heute Abend?" placeholder="z.B. Wo essen wir heute?"/>
+      <div class="field-lbl" id="sp-opts-lbl">Optionen</div>
+      <div id="opt-list">
+        <input class="inp" value="🍕 Pizza bei Napoli"/>
+        <input class="inp" value="🍜 Ramen House"/>
+        <input class="inp" value="🥗 Vegis Corner"/>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="addOpt()" style="margin-bottom:16px" id="sp-add">+ Option hinzufügen</button>
+      <div class="field-lbl" id="sp-invite-lbl">Gruppe einladen</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px">
+        <div class="mem-chip"><div class="mem-av" style="background:#FEE;color:var(--red)">JO</div>Josua</div>
+        <div class="mem-chip"><div class="mem-av" style="background:var(--green-light);color:var(--green)">LA</div>Laura</div>
+        <div class="mem-chip"><div class="mem-av" style="background:var(--amber-light);color:var(--amber)">MI</div>Mike</div>
+        <div class="mem-chip" style="cursor:pointer;border-style:dashed;color:var(--muted)" onclick="alert('Link kopiert!')">+ Einladen</div>
+      </div>
+      <button class="btn btn-ink" onclick="gsp(2)" id="sp-start">Abstimmung starten →</button>
+    </div>
+
+    <!-- Step 2 -->
+    <div id="sp2" style="display:none" class="fade-up">
+      <div class="kicker" style="color:var(--green-mid);margin-bottom:5px">Schritt 2</div>
+      <h2 class="serif" style="font-size:26px;margin-bottom:6px" id="sp2-q"></h2>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:18px" id="sp-vote-desc">Tippe auf deine Wahl. Das Ergebnis ist erst nach deiner Stimme sichtbar.</p>
+      <div id="vote-area"></div>
+      <div style="text-align:center;margin-top:12px;font-size:11px;color:var(--muted)">3 von 3 haben abgestimmt</div>
+    </div>
+
+    <!-- Step 3 -->
+    <div id="sp3" style="display:none" class="fade-up">
+      <div style="background:var(--ink);border-radius:var(--rr);padding:22px;text-align:center;margin-bottom:14px;color:var(--bg)">
+        <div class="kicker" style="color:rgba(250,250,247,.4);margin-bottom:8px" id="sp-decided">Die Gruppe hat gewählt</div>
+        <div class="serif" style="font-size:30px;margin-bottom:6px">🍕 Pizza bei Napoli</div>
+        <div style="font-size:12px;opacity:.6;line-height:1.5" id="sp-nodiscuss">2 von 3 Stimmen. Keine weiteren Diskussionen.</div>
+      </div>
+      <div id="result-area"></div>
+      <div style="height:10px"></div>
+      <button class="btn btn-ink" onclick="gsp(1)" id="sp-newbtn">Neuer Entscheid →</button>
+      <div style="height:8px"></div>
+      <button class="btn btn-outline" onclick="nav('home')" id="sp-overview">Zur Übersicht</button>
+    </div>
+    <div style="height:20px"></div>
+  </div>
+  <nav class="bnav">
+    <div class="bni" onclick="nav('home')"><span class="bni-ic">⌂</span><span class="bni-lb">Home</span><div class="bni-dot"></div></div>
+    <div class="bni on" onclick="nav('split')"><span class="bni-ic">🤝</span><span class="bni-lb">Splithead</span><div class="bni-dot"></div></div>
+    <div class="bni" onclick="nav('bill')"><span class="bni-ic">🧾</span><span class="bni-lb">Bill Split</span><div class="bni-dot"></div></div>
+    <div class="bni" onclick="nav('pro')"><span class="bni-ic">✦</span><span class="bni-lb">Pro</span><div class="bni-dot"></div></div>
+  </nav>
+</div>
+
+<!-- BILL SPLIT -->
+<div id="s-bill" class="screen">
+  <div style="flex:1;overflow-y:auto;padding:22px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:20px">
+      <button class="btn btn-outline btn-sm" id="bill-back-btn" onclick="billBack()" style="width:auto">← Zurück</button>
+      <div class="serif" style="font-size:19px" id="bill-title">Bill Split</div>
+      <div style="width:60px"></div>
+    </div>
+
+    <!-- Step 1 -->
+    <div id="bs1" class="fade-up">
+      <div class="kicker" style="color:var(--green-mid);margin-bottom:5px" id="bs-new">Neue Abrechnung</div>
+      <h2 class="serif" style="font-size:26px;margin-bottom:6px" id="bs-how">Wie wird aufgeteilt?</h2>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:18px" id="bs-desc">Quittung hochladen oder Betrag manuell eingeben.</p>
+
+      <!-- Receipt upload -->
+      <div id="receipt-box" onclick="document.getElementById('receipt-inp').click()" style="border:1.5px dashed var(--border);border-radius:var(--rr);padding:22px;text-align:center;cursor:pointer;margin-bottom:16px;transition:all .18s;background:var(--white)" onmouseenter="this.style.borderColor='var(--ink)'" onmouseleave="this.style.borderColor='var(--border)'">
+        <div style="font-size:32px;margin-bottom:8px">📷</div>
+        <div style="font-size:13px;font-weight:500;margin-bottom:4px">Quittung scannen</div>
+        <div style="font-size:11px;color:var(--muted)">KI erkennt alle Positionen automatisch</div>
+        <input type="file" id="receipt-inp" accept="image/*" style="display:none" onchange="scanReceipt(this)"/>
+      </div>
+
+      <!-- Scanning state -->
+      <div id="scan-loading" style="display:none;background:var(--stone);border-radius:var(--rr);padding:20px;text-align:center;margin-bottom:16px;border:1px solid var(--border)">
+        <div style="font-size:28px;margin-bottom:8px;animation:spin 1.5s linear infinite;display:inline-block">⚙️</div>
+        <div style="font-size:13px;font-weight:500;margin-bottom:4px">KI liest Quittung aus...</div>
+        <div style="font-size:11px;color:var(--muted)">Positionen werden erkannt</div>
+      </div>
+
+      <!-- Scanned preview -->
+      <div id="scan-result" style="display:none;margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div class="kicker" style="color:var(--green-mid)">✓ Quittung erkannt</div>
+          <button onclick="resetScan()" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;font-family:var(--sans)">Neu scannen</button>
+        </div>
+        <div id="scanned-items-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div>
+        <div style="background:var(--ink);border-radius:var(--r);padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:12px;color:rgba(250,250,247,.6)">Total erkannt</span>
+          <span class="serif" id="scanned-total" style="font-size:20px;color:var(--bg)">CHF 0.00</span>
+        </div>
+      </div>
+
+      <!-- Or divider -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <span style="font-size:11px;color:var(--muted)">oder manuell</span>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:18px" id="method-row">
+        <div onclick="selMethod('equal',this)" style="padding:12px 8px;border-radius:var(--r);border:1.5px solid var(--ink);background:var(--stone);cursor:pointer;text-align:center;transition:all .15s">
+          <div style="font-size:20px;margin-bottom:4px">÷</div><div style="font-size:10px;font-weight:500;color:var(--ink);line-height:1.3" id="m1">Gleich aufteilen</div>
+        </div>
+        <div onclick="selMethod('each',this)" style="padding:12px 8px;border-radius:var(--r);border:1.5px solid var(--border);background:var(--white);cursor:pointer;text-align:center;transition:all .15s">
+          <div style="font-size:20px;margin-bottom:4px">🧾</div><div style="font-size:10px;font-weight:500;color:var(--muted);line-height:1.3" id="m2">Jeder zahlt sein</div>
+        </div>
+        <div onclick="selMethod('manual',this)" style="padding:12px 8px;border-radius:var(--r);border:1.5px solid var(--border);background:var(--white);cursor:pointer;text-align:center;transition:all .15s">
+          <div style="font-size:20px;margin-bottom:4px">✏️</div><div style="font-size:10px;font-weight:500;color:var(--muted);line-height:1.3" id="m3">Manuell</div>
+        </div>
+      </div>
+      <div class="field-lbl" id="bs-total-lbl">Gesamtbetrag</div>
+      <div style="position:relative;margin-bottom:8px">
+        <span style="position:absolute;left:15px;top:50%;transform:translateY(-50%);font-family:var(--serif);font-size:18px;color:var(--muted)">CHF</span>
+        <input class="inp" type="number" id="total-inp" value="94" oninput="calcSplit()" style="padding-left:56px;font-family:var(--serif);font-size:28px;font-weight:600;margin-bottom:0"/>
+      </div>
+      <div class="field-lbl" id="bs-persons-lbl">Personen</div>
+      <div id="people-list"></div>
+      <div style="height:14px"></div>
+      <button class="btn btn-green" onclick="gbs(2)" id="bs-show">Abrechnung anzeigen →</button>
+    </div>
+
+    <!-- Step 2 -->
+    <div id="bs2" style="display:none" class="fade-up">
+      <div style="background:var(--green-mid);border-radius:var(--rr);padding:22px;margin-bottom:14px;color:#fff">
+        <div class="kicker" style="color:rgba(255,255,255,.55);margin-bottom:7px" id="bs-splitby">Aufgeteilt durch 4</div>
+        <div class="serif" style="font-size:22px;margin-bottom:14px" id="bs-total-display">CHF 94.00 total</div>
+        <div id="result-people"></div>
+      </div>
+      <div class="kicker" style="margin-bottom:10px" id="bs-items-lbl">Artikel</div>
+      <div id="items-list"></div>
+      <div style="height:14px"></div>
+      <button class="btn btn-green" onclick="alert('Link teilen — alle sehen was sie schulden')" id="bs-share">Abrechnung teilen →</button>
+      <div style="height:8px"></div>
+      <button class="btn btn-outline" onclick="gbs(1)" id="bs-back">Zurück</button>
+      <div style="height:20px"></div>
+    </div>
+  </div>
+  <nav class="bnav">
+    <div class="bni" onclick="nav('home')"><span class="bni-ic">⌂</span><span class="bni-lb">Home</span><div class="bni-dot"></div></div>
+    <div class="bni" onclick="nav('split')"><span class="bni-ic">🤝</span><span class="bni-lb">Splithead</span><div class="bni-dot"></div></div>
+    <div class="bni on" onclick="nav('bill')"><span class="bni-ic">🧾</span><span class="bni-lb">Bill Split</span><div class="bni-dot"></div></div>
+    <div class="bni" onclick="nav('pro')"><span class="bni-ic">✦</span><span class="bni-lb">Pro</span><div class="bni-dot"></div></div>
+  </nav>
+</div>
+
+<!-- PRO -->
+<div id="s-pro" class="screen">
+  <div style="flex:1;overflow-y:auto;padding:22px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:20px">
+      <button class="btn btn-outline btn-sm" onclick="nav('home')" style="width:auto">← Zurück</button>
+      <div class="serif" style="font-size:19px">Splitly Pro</div>
+      <div style="width:60px"></div>
+    </div>
+    <div style="background:var(--ink);border-radius:var(--rr);padding:26px 22px;margin-bottom:18px;color:var(--bg)">
+      <div class="kicker" style="opacity:.35;margin-bottom:8px" id="pro-upgrade">Upgrade</div>
+      <div class="serif" style="font-size:36px;line-height:1;margin-bottom:4px">Splitly<br><span style="font-style:italic;color:#6EE7A0">Pro.</span></div>
+      <div style="font-size:13px;opacity:.5;margin-bottom:20px" id="pro-desc">Für alle die keine Grenzen wollen.</div>
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:0 0 16px"/>
+      <div id="pro-feats"></div>
+    </div>
+    <div class="kicker" style="margin-bottom:10px">Plan wählen</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+      <div onclick="selPlan('monthly',this)" id="plan-monthly" style="background:var(--white);border:1.5px solid var(--border);border-radius:var(--rr);padding:16px;text-align:center;cursor:pointer;transition:all .15s">
+        <div class="kicker" style="margin-bottom:6px" id="plan-m-lbl">Monatlich</div>
+        <div class="serif" style="font-size:28px;font-weight:700;margin-bottom:2px">CHF 3.99</div>
+        <div style="font-size:10px;color:var(--muted)" id="plan-m-note">pro Monat</div>
+      </div>
+      <div onclick="selPlan('yearly',this)" id="plan-yearly" style="background:var(--stone);border:1.5px solid var(--ink);border-radius:var(--rr);padding:16px;text-align:center;cursor:pointer;transition:all .15s">
+        <div class="kicker" style="margin-bottom:6px" id="plan-y-lbl">Jährlich</div>
+        <div class="serif" style="font-size:28px;font-weight:700;margin-bottom:2px">CHF 29.99</div>
+        <div style="font-size:10px;color:var(--muted)" id="plan-y-note">pro Jahr</div>
+        <div style="font-size:10px;font-weight:600;color:var(--green-mid);margin-top:3px" id="plan-save">2 Monate gratis ✦</div>
+      </div>
+    </div>
+    <button class="btn btn-ink" id="pro-btn" onclick="alert('Stripe Checkout — CHF 29.99 / Jahr')">Jetzt upgraden — CHF 29.99 / Jahr</button>
+    <div style="text-align:center;margin-top:10px;font-size:11px;color:var(--muted)" id="pro-cancel">Jederzeit kündbar · kein verstecktes Abo</div>
+    <div style="height:24px"></div>
+  </div>
+  <nav class="bnav">
+    <div class="bni" onclick="nav('home')"><span class="bni-ic">⌂</span><span class="bni-lb">Home</span><div class="bni-dot"></div></div>
+    <div class="bni" onclick="nav('split')"><span class="bni-ic">🤝</span><span class="bni-lb">Splithead</span><div class="bni-dot"></div></div>
+    <div class="bni" onclick="nav('bill')"><span class="bni-ic">🧾</span><span class="bni-lb">Bill Split</span><div class="bni-dot"></div></div>
+    <div class="bni on" onclick="nav('pro')"><span class="bni-ic">✦</span><span class="bni-lb">Pro</span><div class="bni-dot"></div></div>
+  </nav>
+</div>
+
+</div><!-- end .app -->
+
+<script>
+// ── LANG ──────────────────────────────────────────────────
+const T={
+  DE:{greeting:'Guten Tag 👋',tagline:'Entscheiden.',tagline2:'Aufteilen.',sub:'Zwei Probleme die du täglich hast — endlich gelöst.',t1k:'Gruppenentscheid',t1:'Splithead',t1d:'Gruppe einigt sich in Sekunden — kein Hin und Her mehr.',t1b:'10 Entscheide / Tag gratis',t2k:'Rechnungsteiler',t2:'Bill Split',t2d:'Rechnung eingeben — Splitly teilt alles automatisch auf.',t2b:'5 Abrechnungen / Monat gratis',recent:'Zuletzt',stat1:'Entscheide',stat2:'Rechnungen',stat3:'Länder',back:'Zurück',spNew:'Neuer Entscheid',spQ:'Was wird entschieden?',spQd:'Stelle eine Frage, füge Optionen hinzu und lade deine Gruppe ein.',spOpts:'Optionen',spAdd:'+ Option hinzufügen',spInvite:'Gruppe einladen',spStart:'Abstimmung starten →',spVoted:'Tippe auf deine Wahl. Das Ergebnis ist erst nach deiner Stimme sichtbar.',spDecided:'Die Gruppe hat gewählt',spNo:'Stimmen. Keine weiteren Diskussionen.',spNewBtn:'Neuer Entscheid →',spOverview:'Zur Übersicht',spLimit:'8 von 10 Entscheiden heute',spUnlimited:'Unlimitiert →',bsNew:'Neue Abrechnung',bsHow:'Wie wird aufgeteilt?',bsDesc:'Wähle die Methode — gleichmässig oder jeder zahlt was er bestellt hat.',m1:'Gleich aufteilen',m2:'Jeder zahlt sein',m3:'Manuell',bsTotal:'Gesamtbetrag',bsPersons:'Personen',bsShow:'Abrechnung anzeigen →',bsSplitBy:'Aufgeteilt durch',bsItems:'Artikel',bsShare:'Abrechnung teilen →',proUpgrade:'Upgrade',proDesc:'Für alle die keine Grenzen wollen.',planM:'Monatlich',planY:'Jährlich',perM:'pro Monat',perY:'pro Jahr',save:'2 Monate gratis ✦',cancelAnytime:'Jederzeit kündbar · kein verstecktes Abo',feats:['Unbegrenzte Gruppenentscheide','Unbegrenzte Abrechnungen','Gruppen bis 50 Personen','Abrechnung per Link teilen','Wiederkehrende Gruppen speichern','Statistiken & Verlauf','Werbefrei'],lang:'🌍 DE',home:'Home',split:'Splithead',bill:'Bill Split',pro:'Pro'},
+  EN:{greeting:'Good day 👋',tagline:'Decide.',tagline2:'Split.',sub:'Two daily problems — finally solved.',t1k:'Group Decision',t1:'Splithead',t1d:'Group agrees in seconds.',t1b:'10 decisions / day free',t2k:'Bill Splitter',t2:'Bill Split',t2d:'Enter the bill — split automatically.',t2b:'5 bills / month free',recent:'Recent',stat1:'Decisions',stat2:'Bills',stat3:'Countries',back:'Back',spNew:'New Decision',spQ:'What to decide?',spQd:'Enter a question, add options and invite your group.',spOpts:'Options',spAdd:'+ Add option',spInvite:'Invite group',spStart:'Start vote →',spVoted:'Tap your choice. Results show after your vote.',spDecided:'The group decided',spNo:'votes. No more discussions.',spNewBtn:'New decision →',spOverview:'Overview',spLimit:'8 of 10 decisions today',spUnlimited:'Unlimited →',bsNew:'New Bill',bsHow:'How to split?',bsDesc:'Choose the method — split equally or each pays what they ordered.',m1:'Split equally',m2:'Each pays own',m3:'Manual',bsTotal:'Total amount',bsPersons:'People',bsShow:'Show result →',bsSplitBy:'Split by',bsItems:'Items',bsShare:'Share bill →',proUpgrade:'Upgrade',proDesc:'For those who want no limits.',planM:'Monthly',planY:'Yearly',perM:'per month',perY:'per year',save:'2 months free ✦',cancelAnytime:'Cancel anytime · no hidden fees',feats:['Unlimited group decisions','Unlimited bills','Groups up to 50 people','Share bill via link','Save recurring groups','Stats & history','Ad-free'],lang:'🌍 EN',home:'Home',split:'Splithead',bill:'Bill Split',pro:'Pro'},
+  FR:{greeting:'Bonjour 👋',tagline:'Décider.',tagline2:'Partager.',sub:'Deux problèmes quotidiens — enfin résolus.',t1k:'Décision de groupe',t1:'Splithead',t1d:'Le groupe décide en secondes.',t1b:'10 décisions / jour gratuit',t2k:'Partage de note',t2:'Bill Split',t2d:'Entrez la note — partagée automatiquement.',t2b:'5 notes / mois gratuit',recent:'Récent',stat1:'Décisions',stat2:'Notes',stat3:'Pays',back:'Retour',spNew:'Nouvelle décision',spQ:'Que décider?',spQd:'Posez une question, ajoutez des options et invitez votre groupe.',spOpts:'Options',spAdd:'+ Ajouter option',spInvite:'Inviter le groupe',spStart:'Lancer le vote →',spVoted:'Appuyez sur votre choix.',spDecided:'Le groupe a décidé',spNo:'votes. Plus de discussions.',spNewBtn:'Nouvelle décision →',spOverview:'Vue générale',spLimit:'8 sur 10 décisions aujourd\'hui',spUnlimited:'Illimité →',bsNew:'Nouvelle note',bsHow:'Comment diviser?',bsDesc:'Choisissez la méthode.',m1:'Diviser également',m2:'Chacun paie le sien',m3:'Manuel',bsTotal:'Montant total',bsPersons:'Personnes',bsShow:'Afficher →',bsSplitBy:'Divisé par',bsItems:'Articles',bsShare:'Partager →',proUpgrade:'Upgrade',proDesc:'Pour ceux qui ne veulent pas de limites.',planM:'Mensuel',planY:'Annuel',perM:'par mois',perY:'par an',save:'2 mois gratuits ✦',cancelAnytime:'Résiliable à tout moment',feats:['Décisions illimitées','Notes illimitées','Groupes jusqu\'à 50','Partager par lien','Groupes récurrents','Statistiques','Sans publicité'],lang:'🌍 FR',home:'Accueil',split:'Splithead',bill:'Bill Split',pro:'Pro'},
+  IT:{greeting:'Buongiorno 👋',tagline:'Decidere.',tagline2:'Dividere.',sub:'Due problemi quotidiani — finalmente risolti.',t1k:'Decisione di gruppo',t1:'Splithead',t1d:'Il gruppo decide in secondi.',t1b:'10 decisioni / giorno gratis',t2k:'Divisore conto',t2:'Bill Split',t2d:'Inserisci il conto — diviso automaticamente.',t2b:'5 conti / mese gratis',recent:'Recente',stat1:'Decisioni',stat2:'Conti',stat3:'Paesi',back:'Indietro',spNew:'Nuova decisione',spQ:'Cosa decidere?',spQd:'Inserisci una domanda, aggiungi opzioni e invita il gruppo.',spOpts:'Opzioni',spAdd:'+ Aggiungi opzione',spInvite:'Invita gruppo',spStart:'Inizia votazione →',spVoted:'Tocca la tua scelta.',spDecided:'Il gruppo ha deciso',spNo:'voti. Niente più discussioni.',spNewBtn:'Nuova decisione →',spOverview:'Panoramica',spLimit:'8 di 10 decisioni oggi',spUnlimited:'Illimitato →',bsNew:'Nuovo conto',bsHow:'Come dividere?',bsDesc:'Scegli il metodo.',m1:'Dividi ugualmente',m2:'Ognuno paga il suo',m3:'Manuale',bsTotal:'Importo totale',bsPersons:'Persone',bsShow:'Mostra →',bsSplitBy:'Diviso per',bsItems:'Articoli',bsShare:'Condividi →',proUpgrade:'Upgrade',proDesc:'Per chi non vuole limiti.',planM:'Mensile',planY:'Annuale',perM:'al mese',perY:'all\'anno',save:'2 mesi gratis ✦',cancelAnytime:'Annulla quando vuoi',feats:['Decisioni illimitate','Conti illimitati','Gruppi fino a 50','Condividi tramite link','Gruppi ricorrenti','Statistiche','Senza pubblicità'],lang:'🌍 IT',home:'Home',split:'Splithead',bill:'Bill Split',pro:'Pro'},
+  ES:{greeting:'Buenos días 👋',tagline:'Decidir.',tagline2:'Dividir.',sub:'Dos problemas diarios — finalmente resueltos.',t1k:'Decisión de grupo',t1:'Splithead',t1d:'El grupo decide en segundos.',t1b:'10 decisiones / día gratis',t2k:'Divisor de cuenta',t2:'Bill Split',t2d:'Ingresa la cuenta — dividida automáticamente.',t2b:'5 cuentas / mes gratis',recent:'Reciente',stat1:'Decisiones',stat2:'Cuentas',stat3:'Países',back:'Atrás',spNew:'Nueva decisión',spQ:'¿Qué decidir?',spQd:'Escribe una pregunta, añade opciones e invita a tu grupo.',spOpts:'Opciones',spAdd:'+ Añadir opción',spInvite:'Invitar grupo',spStart:'Iniciar votación →',spVoted:'Toca tu elección.',spDecided:'El grupo ha decidido',spNo:'votos. Sin más discusiones.',spNewBtn:'Nueva decisión →',spOverview:'Vista general',spLimit:'8 de 10 decisiones hoy',spUnlimited:'Ilimitado →',bsNew:'Nueva cuenta',bsHow:'¿Cómo dividir?',bsDesc:'Elige el método.',m1:'Dividir por igual',m2:'Cada uno paga lo suyo',m3:'Manual',bsTotal:'Monto total',bsPersons:'Personas',bsShow:'Ver resultado →',bsSplitBy:'Dividido por',bsItems:'Artículos',bsShare:'Compartir cuenta →',proUpgrade:'Mejorar',proDesc:'Para quienes no quieren límites.',planM:'Mensual',planY:'Anual',perM:'por mes',perY:'por año',save:'2 meses gratis ✦',cancelAnytime:'Cancela cuando quieras',feats:['Decisiones ilimitadas','Cuentas ilimitadas','Grupos hasta 50','Compartir por enlace','Grupos recurrentes','Estadísticas','Sin publicidad'],lang:'🌍 ES',home:'Inicio',split:'Splithead',bill:'Bill Split',pro:'Pro'},
+};
+const LANGS=['DE','EN','FR','IT','ES'];let li=0;
+function cycleLang(btn){
+  li=(li+1)%LANGS.length;
+  const t=T[LANGS[li]];
+  btn.textContent=t.lang;
+  setT('h-greeting',t.greeting);setT('h-tagline',t.tagline);setT('h-tagline2',t.tagline2);setT('h-sub',t.sub);
+  setT('t1-kicker',t.t1k);setT('t1-name',t.t1);setT('t1-desc',t.t1d);setT('t1-badge',t.t1b);
+  setT('t2-kicker',t.t2k);setT('t2-name',t.t2);setT('t2-desc',t.t2d);setT('t2-badge',t.t2b);
+  setT('h-recent',t.recent);setT('stat1',t.stat1);setT('stat2',t.stat2);setT('stat3',t.stat3);
+  setT('nb-home',t.home);setT('nb-split',t.split);setT('nb-bill',t.bill);setT('nb-pro',t.pro);
+  setT('sp-back',t.back);setT('sp-new',t.spNew);setT('sp-q-title',t.spQ);setT('sp-q-desc',t.spQd);
+  setT('sp-opts-lbl',t.spOpts);setT('sp-add',t.spAdd);setT('sp-invite-lbl',t.spInvite);setT('sp-start',t.spStart);
+  setT('sp-vote-desc',t.spVoted);setT('sp-decided',t.spDecided);setT('sp-newbtn',t.spNewBtn);setT('sp-overview',t.spOverview);
+  setT('sp-limit',t.spLimit);setT('sp-unlimited',t.spUnlimited);
+  setT('bs-new',t.bsNew);setT('bs-how',t.bsHow);setT('bs-desc',t.bsDesc);
+  setT('m1',t.m1);setT('m2',t.m2);setT('m3',t.m3);
+  setT('bs-total-lbl',t.bsTotal);setT('bs-persons-lbl',t.bsPersons);setT('bs-show',t.bsShow);
+  setT('bs-items-lbl',t.bsItems);setT('bs-share',t.bsShare);setT('bs-back',t.back);
+  setT('pro-upgrade',t.proUpgrade);setT('pro-desc',t.proDesc);
+  setT('plan-m-lbl',t.planM);setT('plan-m-note',t.perM);setT('plan-y-lbl',t.planY);setT('plan-y-note',t.perY);
+  setT('plan-save',t.save);setT('pro-cancel',t.cancelAnytime);
+  renderProFeats(t.feats);
+  renderPeople();
+}
+function setT(id,val){const el=document.getElementById(id);if(el)el.textContent=val;}
+
+// ── NAV ──────────────────────────────────────────────────
+function nav(page){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  document.getElementById('s-'+page).classList.add('on');
+  document.querySelectorAll('.bni').forEach(b=>b.classList.remove('on'));
+  // highlight correct nav item
+  const navMap={home:0,split:1,bill:2,pro:3};
+  document.querySelectorAll('.bni')[navMap[page]]?.classList.add('on');
+  // re-init pages
+  if(page==='bill')renderPeople();
+  if(page==='pro')renderProFeats(T[LANGS[li]].feats);
+}
+
+// ── SPLITHEAD ─────────────────────────────────────────────
+function gsp(n){
+  ['sp1','sp2','sp3'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){el.style.display=n===parseInt(id.replace('sp',''))?'block':'none';}
+  });
+  if(n===2){
+    document.getElementById('sp1').style.display='none';
+    document.getElementById('sp2').style.display='block';
+    document.getElementById('sp2').classList.add('fade-up');
+    const q=document.getElementById('q-inp').value;
+    document.getElementById('sp2-q').textContent=q;
+    const opts=[...document.querySelectorAll('#opt-list .inp')].map(i=>i.value).filter(v=>v);
+    const area=document.getElementById('vote-area');area.innerHTML='';
+    voted=false;
+    opts.forEach((o,i)=>{
+      const d=document.createElement('div');
+      d.style.cssText='background:var(--white);border:1.5px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .16s';
+      d.innerHTML=`<span style="font-size:20px;width:28px;text-align:center">${o.split(' ')[0]}</span><span style="font-size:13px;font-weight:500">${o}</span>`;
+      d.onclick=()=>castVote(i,opts);
+      area.appendChild(d);
+    });
+  }
+  if(n===1){voted=false;}
+}
+function addOpt(){
+  const list=document.getElementById('opt-list');
+  const inp=document.createElement('input');inp.className='inp';inp.placeholder='Option...';
+  list.appendChild(inp);inp.focus();
+}
+let voted=false;
+const VD=[{e:'🍕',t:'Pizza bei Napoli',p:67,v:2},{e:'🍜',t:'Ramen House',p:33,v:1},{e:'🥗',t:'Vegis Corner',p:0,v:0}];
+function castVote(idx,opts){
+  if(voted)return;voted=true;
+  setTimeout(()=>{
+    document.getElementById('sp2').style.display='none';
+    document.getElementById('sp3').style.display='block';
+    document.getElementById('sp3').classList.add('fade-up');
+    document.querySelector('#sp3 .serif').textContent=opts[0]||'🍕 Pizza bei Napoli';
+    const area=document.getElementById('result-area');area.innerHTML='';
+    VD.forEach((r,i)=>{
+      const d=document.createElement('div');
+      d.style.cssText=`background:${i===0?'var(--ink)':'var(--white)'};color:${i===0?'var(--bg)':'var(--ink)'};border:1.5px solid ${i===0?'var(--ink)':'var(--border)'};border-radius:var(--r);padding:14px 16px;margin-bottom:7px;display:flex;align-items:center;gap:12px`;
+      d.innerHTML=`<span style="font-size:20px;width:28px;text-align:center">${r.e}</span><div style="flex:1"><div style="font-size:13px;font-weight:500">${r.t}</div><div style="height:2px;background:${i===0?'rgba(255,255,255,.2)':'var(--border)'};border-radius:1px;margin-top:5px"><div style="height:2px;width:${r.p}%;background:${i===0?'rgba(255,255,255,.6)':'var(--ink)'};border-radius:1px"></div></div><div style="font-size:10px;color:${i===0?'rgba(250,250,247,.55)':'var(--muted)'};margin-top:2px">${r.v} Stimmen · ${r.p}%</div></div>`;
+      area.appendChild(d);
+    });
+  },350);
+}
+
+// ── BILL SPLIT ────────────────────────────────────────────
+const PEOPLE=[
+  {init:'JO',name:'Josua',bg:'#FEE',color:'var(--red)',items:'🍕 Pizza · 🍺 Bier',own:28.50},
+  {init:'LA',name:'Laura',bg:'var(--green-light)',color:'var(--green)',items:'🥗 Salat · 💧 Wasser',own:18.00},
+  {init:'MI',name:'Mike',bg:'var(--amber-light)',color:'var(--amber)',items:'🍝 Pasta · 🍷 Wein',own:26.50},
+  {init:'SO',name:'Sophie',bg:'var(--blue-light)',color:'var(--blue)',items:'🍔 Burger · 🍹 Cocktail',own:21.00},
+];
+const ITEMS=[
+  {e:'🍕',name:'Pizza Margherita',who:'Josua',price:18.00},
+  {e:'🍺',name:'Bier',who:'Josua',price:10.50},
+  {e:'🥗',name:'Caesar Salad',who:'Laura',price:16.00},
+  {e:'💧',name:'Wasser',who:'Laura',price:2.00},
+  {e:'🍝',name:'Pasta Carbonara',who:'Mike',price:19.00},
+  {e:'🍷',name:'Wein',who:'Mike',price:7.50},
+  {e:'🍔',name:'Cheeseburger',who:'Sophie',price:21.00},
+];
+let splitMethod='equal';
+function selMethod(m,el){
+  splitMethod=m;
+  document.querySelectorAll('#method-row > div').forEach(d=>{
+    d.style.border='1.5px solid var(--border)';d.style.background='var(--white)';
+    d.querySelector('div:last-child').style.color='var(--muted)';
+  });
+  el.style.border='1.5px solid var(--ink)';el.style.background='var(--stone)';
+  el.querySelector('div:last-child').style.color='var(--ink)';
+  calcSplit();
+}
+function calcSplit(){
+  const total=parseFloat(document.getElementById('total-inp').value)||0;
+  const per=(total/PEOPLE.length).toFixed(2);
+  document.querySelectorAll('.person-amt').forEach((el,i)=>{
+    el.textContent='CHF '+(splitMethod==='equal'?per:PEOPLE[i].own.toFixed(2));
+  });
+}
+function renderPeople(){
+  const list=document.getElementById('people-list');
+  if(!list)return;list.innerHTML='';
+  const total=parseFloat(document.getElementById('total-inp')?.value)||94;
+  const per=(total/PEOPLE.length).toFixed(2);
+  PEOPLE.forEach((p,i)=>{
+    const d=document.createElement('div');
+    d.style.cssText='background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:7px;display:flex;align-items:center;gap:10px';
+    d.innerHTML=`<div style="width:36px;height:36px;border-radius:50%;background:${p.bg};color:${p.color};font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${p.init}</div><div style="flex:1"><div style="font-size:13px;font-weight:500">${p.name}</div><div style="font-size:10px;color:var(--muted);margin-top:1px">${p.items}</div></div><div class="person-amt" style="font-family:var(--serif);font-size:18px;font-weight:600">CHF ${splitMethod==='equal'?per:p.own.toFixed(2)}</div>`;
+    list.appendChild(d);
+  });
+}
+function gbs(n){
+  document.getElementById('bs1').style.display=n===1?'block':'none';
+  document.getElementById('bs2').style.display=n===2?'block':'none';
+  if(n===2){
+    document.getElementById('bs2').classList.add('fade-up');
+    const total=parseFloat(document.getElementById('total-inp').value)||0;
+    const per=(total/PEOPLE.length).toFixed(2);
+    document.getElementById('bs-total-display').textContent=`CHF ${total.toFixed(2)} total`;
+    document.getElementById('bs-splitby').textContent=`${T[LANGS[li]].bsSplitBy} ${PEOPLE.length}`;
+    const rp=document.getElementById('result-people');rp.innerHTML='';
+    PEOPLE.forEach((p,i)=>{
+      const d=document.createElement('div');
+      d.style.cssText=`display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:${i<PEOPLE.length-1?'1px solid rgba(255,255,255,.15)':'none'};font-size:13px`;
+      const amt=splitMethod==='equal'?per:p.own.toFixed(2);
+      d.innerHTML=`<div><div>${p.name}</div><div style="font-size:10px;opacity:.55;margin-top:1px">${p.items}</div></div><div style="font-family:var(--serif);font-size:17px;font-weight:600">CHF ${amt}</div>`;
+      rp.appendChild(d);
+    });
+    const il=document.getElementById('items-list');il.innerHTML='';
+    const displayItems = scannedItems.length > 0 ? scannedItems.map(i=>({e:i.emoji||'🧾',name:i.name,who:'—',price:parseFloat(i.price)||0})) : ITEMS;
+    displayItems.forEach(item=>{
+      const d=document.createElement('div');
+      d.style.cssText='background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:11px 14px;margin-bottom:6px;display:flex;align-items:center;gap:10px';
+      d.innerHTML=`<span style="font-size:18px;width:24px;text-align:center;flex-shrink:0">${item.e}</span><div style="flex:1"><div style="font-size:13px;font-weight:500">${item.name}</div><div style="font-size:10px;color:var(--muted);margin-top:1px">${item.who}</div></div><div style="font-size:13px;font-weight:600">CHF ${item.price.toFixed(2)}</div>`;
+      il.appendChild(d);
+    });
+  }
+}
+function billBack(){
+  const bs2=document.getElementById('bs2');
+  if(bs2.style.display==='block'){gbs(1);}else{nav('home');}
+}
+
+// ── PRO ───────────────────────────────────────────────────
+function renderProFeats(feats){
+  const el=document.getElementById('pro-feats');if(!el)return;el.innerHTML='';
+  feats.forEach(f=>{
+    const d=document.createElement('div');
+    d.style.cssText='display:flex;align-items:center;gap:10px;font-size:13px;opacity:.8;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06)';
+    d.innerHTML=`<div style="width:18px;height:18px;border-radius:50%;background:#6EE7A0;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--ink);font-weight:700;flex-shrink:0">✓</div>${f}`;
+    el.appendChild(d);
+  });
+}
+let selPlanId='yearly';
+function selPlan(id,el){
+  selPlanId=id;
+  ['plan-monthly','plan-yearly'].forEach(pid=>{
+    const p=document.getElementById(pid);
+    if(p){p.style.background='var(--white)';p.style.border='1.5px solid var(--border)';}
+  });
+  el.style.background='var(--stone)';el.style.border='1.5px solid var(--ink)';
+  const t=T[LANGS[li]];
+  const price=id==='monthly'?'CHF 3.99':'CHF 29.99';
+  const period=id==='monthly'?t.perM:t.perY;
+  document.getElementById('pro-btn').textContent=`${t.proUpgrade} — ${price} / ${period}`;
+  document.getElementById('pro-btn').onclick=()=>alert(`Stripe Checkout: ${price} ${period}`);
+}
+
+// ── RECEIPT SCAN ─────────────────────────────────────────
+let scannedItems = [];
+
+async function scanReceipt(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  // Show loading
+  document.getElementById('receipt-box').style.display = 'none';
+  document.getElementById('scan-loading').style.display = 'block';
+  document.getElementById('scan-result').style.display = 'none';
+
+  // Convert to base64
+  const base64 = await new Promise(res => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(',')[1]);
+    r.readAsDataURL(file);
+  });
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: file.type, data: base64 }
+            },
+            {
+              type: 'text',
+              text: 'Lies diese Quittung aus. Antworte NUR mit einem JSON-Array ohne Markdown-Backticks. Format: [{"name":"Produktname","price":12.50,"emoji":"passendes Emoji"}]. Erkenne alle Positionen mit Preis. Ignoriere Steuer, Servicegebühren und Trinkgeld als separate Zeilen — addiere sie zum Gesamtpreis. Antworte ausschliesslich mit dem JSON-Array.'
+            }
+          ]
+        }]
+      })
+    });
+
+    const data = await response.json();
+    const text = data.content?.find(b => b.type === 'text')?.text || '[]';
+
+    let items;
+    try {
+      items = JSON.parse(text.replace(/```json|```/g, '').trim());
+    } catch {
+      items = [];
+    }
+
+    scannedItems = items;
+    const total = items.reduce((s, i) => s + (parseFloat(i.price) || 0), 0);
+
+    // Update total input
+    document.getElementById('total-inp').value = total.toFixed(2);
+    document.getElementById('scanned-total').textContent = 'CHF ' + total.toFixed(2);
+
+    // Render scanned items
+    const list = document.getElementById('scanned-items-list');
+    list.innerHTML = '';
+    items.forEach(item => {
+      const d = document.createElement('div');
+      d.style.cssText = 'background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;display:flex;align-items:center;gap:10px';
+      d.innerHTML = `<span style="font-size:18px;width:24px;text-align:center;flex-shrink:0">${item.emoji || '🧾'}</span><div style="flex:1;font-size:13px;font-weight:500">${item.name}</div><div style="font-size:13px;font-weight:600">CHF ${parseFloat(item.price).toFixed(2)}</div>`;
+      list.appendChild(d);
+    });
+
+    // Hide loading, show result
+    document.getElementById('scan-loading').style.display = 'none';
+    document.getElementById('scan-result').style.display = 'block';
+    calcSplit();
+
+  } catch (err) {
+    document.getElementById('scan-loading').style.display = 'none';
+    document.getElementById('receipt-box').style.display = 'block';
+    alert('Fehler beim Scannen. Bitte nochmals versuchen.');
+  }
+}
+
+function resetScan() {
+  scannedItems = [];
+  document.getElementById('scan-result').style.display = 'none';
+  document.getElementById('receipt-box').style.display = 'block';
+  document.getElementById('receipt-inp').value = '';
+}
+
+// ── INIT ──────────────────────────────────────────────────
+renderProFeats(T.DE.feats);
+renderPeople();
+document.getElementById('bs1').style.display='block';
+document.getElementById('bs2').style.display='none';
+document.getElementById('sp1').style.display='block';
+document.getElementById('sp2').style.display='none';
+document.getElementById('sp3').style.display='none';
+</script>
+</body>
+</html>
