@@ -4,6 +4,20 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
 <title>Splitly</title>
+<!-- PWA -->
+<link rel="manifest" href="/manifest.json"/>
+<meta name="theme-color" content="#0C0C0A"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black"/>
+<meta name="apple-mobile-web-app-title" content="Splitly"/>
+<link rel="apple-touch-icon" href="/icons/icon-192.png"/>
+<link rel="icon" type="image/svg+xml" href="/icons/icon.svg"/>
+<!-- Social -->
+<meta name="description" content="Gruppenentscheide und Rechnungsteilung — einfach, schnell, für alle."/>
+<meta property="og:title" content="Splitly"/>
+<meta property="og:description" content="2 Tools. 1 App."/>
+<meta property="og:type" content="website"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
@@ -51,6 +65,7 @@ body{font-family:var(--sans);font-size:14px;color:var(--ink);-webkit-font-smooth
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 .fade-up{animation:fadeUp .25s ease forwards}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 20px;border-radius:20px;font-size:13px;font-weight:500;z-index:400;animation:fadeUp .2s ease;pointer-events:none;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.18)}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -191,7 +206,7 @@ body{font-family:var(--sans);font-size:14px;color:var(--ink);-webkit-font-smooth
         <div class="mem-chip"><div class="mem-av" style="background:#FEE;color:var(--red)">JO</div>Josua</div>
         <div class="mem-chip"><div class="mem-av" style="background:var(--green-light);color:var(--green)">LA</div>Laura</div>
         <div class="mem-chip"><div class="mem-av" style="background:var(--amber-light);color:var(--amber)">MI</div>Mike</div>
-        <div class="mem-chip" style="cursor:pointer;border-style:dashed;color:var(--muted)" onclick="alert('Link kopiert!')">+ Einladen</div>
+        <div class="mem-chip" style="cursor:pointer;border-style:dashed;color:var(--muted)" onclick="shareInvite()">+ Einladen</div>
       </div>
       <button class="btn btn-ink" onclick="gsp(2)" id="sp-start">Abstimmung starten →</button>
     </div>
@@ -321,7 +336,7 @@ body{font-family:var(--sans);font-size:14px;color:var(--ink);-webkit-font-smooth
       <div class="kicker" style="margin-bottom:10px" id="bs-items-lbl">Artikel</div>
       <div id="items-list"></div>
       <div style="height:14px"></div>
-      <button class="btn btn-green" onclick="alert('Link teilen — alle sehen was sie schulden')" id="bs-share">Abrechnung teilen →</button>
+      <button class="btn btn-green" onclick="shareBill()" id="bs-share">Abrechnung teilen →</button>
       <div style="height:8px"></div>
       <button class="btn btn-outline" onclick="gbs(1)" id="bs-back">Zurück</button>
       <div style="height:20px"></div>
@@ -364,7 +379,7 @@ body{font-family:var(--sans);font-size:14px;color:var(--ink);-webkit-font-smooth
         <div style="font-size:10px;font-weight:600;color:var(--green-mid);margin-top:3px" id="plan-save">2 Monate gratis ✦</div>
       </div>
     </div>
-    <button class="btn btn-ink" id="pro-btn" onclick="alert('Stripe Checkout — CHF 29.99 / Jahr')">Jetzt upgraden — CHF 29.99 / Jahr</button>
+    <button class="btn btn-ink" id="pro-btn" onclick="openCheckout()">Jetzt upgraden — CHF 29.99 / Jahr</button>
     <div style="text-align:center;margin-top:10px;font-size:11px;color:var(--muted)" id="pro-cancel">Jederzeit kündbar · kein verstecktes Abo</div>
     <div style="height:24px"></div>
   </div>
@@ -621,7 +636,12 @@ async function scanReceipt(input) {
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': CLAUDE_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
@@ -676,7 +696,7 @@ async function scanReceipt(input) {
   } catch (err) {
     document.getElementById('scan-loading').style.display = 'none';
     document.getElementById('receipt-box').style.display = 'block';
-    alert('Fehler beim Scannen. Bitte nochmals versuchen.');
+    showToast('Fehler beim Scannen. Bitte nochmals versuchen.');
   }
 }
 
@@ -687,10 +707,34 @@ function resetScan() {
   document.getElementById('receipt-inp').value = '';
 }
 
-// ── SUPABASE AUTH ─────────────────────────────────────────
-// Replace with your Supabase project URL and anon key
+// ── UTILS ─────────────────────────────────────────────────
+function showToast(msg){
+  const t=document.createElement('div');
+  t.className='toast';t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),2800);
+}
+async function shareInvite(){
+  const url=window.location.href;
+  if(navigator.share){navigator.share({title:'Splitly',text:'Stimme mit ab!',url}).catch(()=>{});}
+  else{await navigator.clipboard.writeText(url).catch(()=>{});showToast('Link kopiert ✓');}
+}
+async function shareBill(){
+  const url=window.location.href;
+  if(navigator.share){navigator.share({title:'Splitly – Abrechnung',text:'Schau dir unsere Abrechnung an!',url}).catch(()=>{});}
+  else{await navigator.clipboard.writeText(url).catch(()=>{});showToast('Link kopiert ✓');}
+}
+function openCheckout(){
+  if(STRIPE_LINK&&STRIPE_LINK!=='YOUR_STRIPE_PAYMENT_LINK'){window.open(STRIPE_LINK,'_blank');}
+  else{showToast('Stripe noch nicht konfiguriert.');}
+}
+
+// ── CONFIG ────────────────────────────────────────────────
+// Replace these with your real credentials before going live
 const SUPABASE_URL='YOUR_SUPABASE_URL';
 const SUPABASE_ANON_KEY='YOUR_SUPABASE_ANON_KEY';
+const CLAUDE_API_KEY='YOUR_CLAUDE_API_KEY';  // sk-ant-...
+const STRIPE_LINK='YOUR_STRIPE_PAYMENT_LINK'; // https://buy.stripe.com/...
 let sb=null;let currentUser=null;
 try{sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);}catch(e){}
 
@@ -801,6 +845,11 @@ document.getElementById('sp1').style.display='block';
 document.getElementById('sp2').style.display='none';
 document.getElementById('sp3').style.display='none';
 initAuth();
+
+// ── SERVICE WORKER ────────────────────────────────────────
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/sw.js').catch(()=>{});
+}
 </script>
 </body>
 </html>
