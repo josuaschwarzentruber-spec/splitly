@@ -215,6 +215,14 @@ body{font-family:var(--sans);font-size:14px;color:var(--ink);-webkit-font-smooth
     <div id="sp2" style="display:none" class="fade-up">
       <div class="kicker" style="color:var(--green-mid);margin-bottom:5px">Schritt 2</div>
       <h2 class="serif" style="font-size:26px;margin-bottom:6px" id="sp2-q"></h2>
+      <!-- Share link for group (shown after room created) -->
+      <div id="sp2-share-block" style="display:none;background:var(--stone);border-radius:var(--r);padding:12px 14px;margin-bottom:16px;border:1px solid var(--border)">
+        <div class="kicker" style="color:var(--muted);margin-bottom:7px">Link für Gruppe kopieren</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div id="sp2-share-url" style="font-size:11px;color:var(--ink);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:var(--white);border-radius:8px;padding:7px 10px;border:1px solid var(--border)"></div>
+          <button onclick="copyRoomLink()" style="font-size:11px;font-weight:600;padding:8px 14px;background:var(--ink);color:var(--bg);border:none;border-radius:8px;cursor:pointer;flex-shrink:0;font-family:var(--sans)">Kopieren</button>
+        </div>
+      </div>
       <!-- Name entry -->
       <div id="sp2-name-section">
         <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px">Wie heißt du? Damit wir wissen, wer abgestimmt hat.</p>
@@ -321,6 +329,10 @@ body{font-family:var(--sans);font-size:14px;color:var(--ink);-webkit-font-smooth
         <input class="inp" type="number" id="total-inp" value="94" oninput="calcSplit()" style="padding-left:56px;font-family:var(--serif);font-size:28px;font-weight:600;margin-bottom:0"/>
       </div>
       <div class="field-lbl" id="bs-persons-lbl">Personen</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input class="inp" id="person-name-inp" placeholder="Name eingeben…" style="flex:1;margin-bottom:0" onkeydown="if(event.key==='Enter')addPerson()"/>
+        <button class="btn btn-outline btn-sm" style="flex-shrink:0;white-space:nowrap" onclick="addPerson()">+ Hinzufügen</button>
+      </div>
       <div id="people-list"></div>
       <div style="height:14px"></div>
       <button class="btn btn-green" onclick="gbs(2)" id="bs-show">Abrechnung anzeigen →</button>
@@ -337,6 +349,10 @@ body{font-family:var(--sans);font-size:14px;color:var(--ink);-webkit-font-smooth
       <div id="items-list"></div>
       <div style="height:14px"></div>
       <button class="btn btn-green" onclick="shareBill()" id="bs-share">Abrechnung teilen →</button>
+      <div id="bill-share-url-block" style="display:none;background:var(--stone);border-radius:var(--r);padding:12px 14px;margin-top:8px;border:1px solid var(--border)">
+        <div class="kicker" style="color:var(--muted);margin-bottom:6px">Link kopiert ✓</div>
+        <div id="bill-share-url" style="font-size:11px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+      </div>
       <div style="height:8px"></div>
       <button class="btn btn-outline" onclick="gbs(1)" id="bs-back">Zurück</button>
       <div style="height:20px"></div>
@@ -442,92 +458,150 @@ function nav(page){
 }
 
 // ── SPLITHEAD ─────────────────────────────────────────────
-function gsp(n){
+let voted=false;
+let currentRoom=null;
+
+async function gsp(n){
   ['sp1','sp2','sp3'].forEach(id=>{
     const el=document.getElementById(id);
-    if(el){el.style.display=n===parseInt(id.replace('sp',''))?'block':'none';}
+    if(el)el.style.display=n===parseInt(id.replace('sp',''))?'block':'none';
   });
   if(n===2){
+    const q=document.getElementById('q-inp').value.trim();
+    const opts=[...document.querySelectorAll('#opt-list .inp')].map(i=>i.value.trim()).filter(v=>v);
+    if(!q){showToast('Bitte eine Frage eingeben.');gsp(1);return;}
+    if(opts.length<2){showToast('Mindestens 2 Optionen nötig.');gsp(1);return;}
+    // Check decision limit
+    const allowed=await checkDecisionLimit();
+    if(!allowed)return;
     document.getElementById('sp1').style.display='none';
     document.getElementById('sp2').style.display='block';
     document.getElementById('sp2').classList.add('fade-up');
-    const q=document.getElementById('q-inp').value;
     document.getElementById('sp2-q').textContent=q;
-    // reset name section
     document.getElementById('sp2-name-section').style.display='block';
     document.getElementById('sp2-vote-section').style.display='none';
     document.getElementById('voter-name-inp').value='';
+    document.getElementById('sp2-share-block').style.display='none';
     voted=false;
-    // store options for use after name confirmed
-    window._spOpts=[...document.querySelectorAll('#opt-list .inp')].map(i=>i.value).filter(v=>v);
+    window._spOpts=opts;
+    // Create room in Supabase
+    if(sb&&SUPABASE_URL!=='YOUR_SUPABASE_URL'){
+      const code=Math.random().toString(36).substring(2,8).toUpperCase();
+      const{data,error}=await sb.from('rooms').insert({
+        code,question:q,options:opts,votes:{},created_by:currentUser?.id||null
+      }).select().single();
+      if(!error&&data){
+        currentRoom=data;
+        await incrementDecisions();
+        const url=`${window.location.origin}?room=${code}`;
+        document.getElementById('sp2-share-url').textContent=url;
+        document.getElementById('sp2-share-block').style.display='block';
+      }
+    }
   }
-  if(n===1){voted=false;}
+  if(n===1){voted=false;currentRoom=null;}
 }
+
 function confirmVoterName(){
   const name=document.getElementById('voter-name-inp').value.trim();
-  if(!name)return;
+  if(!name){showToast('Bitte deinen Namen eingeben.');return;}
   document.getElementById('sp2-name-section').style.display='none';
   document.getElementById('sp2-vote-section').style.display='block';
   const chip=document.getElementById('sp2-voter-chip');
   const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-  chip.innerHTML=`<div style="width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--bg);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">${initials}</div><span>Du stimmst als <strong>${name}</strong> ab</span>`;
+  chip.innerHTML=`<div style="width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--bg);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">${initials}</div><span style="font-size:13px;color:var(--muted)">Du stimmst als <strong style="color:var(--ink)">${name}</strong> ab</span>`;
   const opts=window._spOpts||[];
   const area=document.getElementById('vote-area');area.innerHTML='';
   opts.forEach((o,i)=>{
     const d=document.createElement('div');
     d.style.cssText='background:var(--white);border:1.5px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .16s';
-    const firstChar=(o.trim()[0]||'');
-    const hasEmoji=firstChar.codePointAt(0)>127;
+    const hasEmoji=(o.trim()[0]||'').codePointAt(0)>127;
     const icon=hasEmoji?o.split(' ')[0]:'';
-    const label=o;
-    d.innerHTML=`${icon?`<span style="font-size:20px;width:28px;text-align:center;flex-shrink:0">${icon}</span>`:''}<span style="font-size:13px;font-weight:500">${label}</span>`;
+    d.innerHTML=`${icon?`<span style="font-size:20px;width:28px;text-align:center;flex-shrink:0">${icon}</span>`:''}<span style="font-size:13px;font-weight:500">${o}</span>`;
     d.onmouseenter=()=>{d.style.borderColor='var(--ink)';};
     d.onmouseleave=()=>{d.style.borderColor='var(--border)';};
     d.onclick=()=>castVote(i,opts,name);
     area.appendChild(d);
   });
 }
+
 function addOpt(){
   const list=document.getElementById('opt-list');
   const inp=document.createElement('input');inp.className='inp';inp.placeholder='Option...';
   list.appendChild(inp);inp.focus();
 }
-let voted=false;
-const VD=[{e:'🍕',t:'Pizza bei Napoli',p:67,v:2},{e:'🍜',t:'Ramen House',p:33,v:1},{e:'🥗',t:'Vegis Corner',p:0,v:0}];
-function castVote(idx,opts){
+
+async function castVote(idx,opts,voterName){
   if(voted)return;voted=true;
+  let finalVotes={[voterName]:idx};
+  if(sb&&currentRoom){
+    // Merge with existing votes
+    const{data:fresh}=await sb.from('rooms').select('votes').eq('id',currentRoom.id).single();
+    const merged={...(fresh?.votes||{}),[voterName]:idx};
+    const{data,error}=await sb.from('rooms').update({votes:merged}).eq('id',currentRoom.id).select().single();
+    if(!error&&data){currentRoom=data;finalVotes=data.votes;}
+  }
   setTimeout(()=>{
     document.getElementById('sp2').style.display='none';
     document.getElementById('sp3').style.display='block';
     document.getElementById('sp3').classList.add('fade-up');
-    document.querySelector('#sp3 .serif').textContent=opts[0]||'🍕 Pizza bei Napoli';
+    const tallied=tallyVotes(finalVotes,opts);
+    const sorted=[...tallied].sort((a,b)=>b.count-a.count);
+    const winner=sorted[0];
+    document.querySelector('#sp3 .serif').textContent=winner.text;
+    const total=Object.keys(finalVotes).length;
+    document.getElementById('sp-nodiscuss').textContent=`${winner.count} von ${total} Stimmen. Keine weiteren Diskussionen.`;
     const area=document.getElementById('result-area');area.innerHTML='';
-    VD.forEach((r,i)=>{
+    sorted.forEach((r,i)=>{
+      const hasEmoji=(r.text.trim()[0]||'').codePointAt(0)>127;
+      const icon=hasEmoji?r.text.split(' ')[0]:'·';
       const d=document.createElement('div');
       d.style.cssText=`background:${i===0?'var(--ink)':'var(--white)'};color:${i===0?'var(--bg)':'var(--ink)'};border:1.5px solid ${i===0?'var(--ink)':'var(--border)'};border-radius:var(--r);padding:14px 16px;margin-bottom:7px;display:flex;align-items:center;gap:12px`;
-      d.innerHTML=`<span style="font-size:20px;width:28px;text-align:center">${r.e}</span><div style="flex:1"><div style="font-size:13px;font-weight:500">${r.t}</div><div style="height:2px;background:${i===0?'rgba(255,255,255,.2)':'var(--border)'};border-radius:1px;margin-top:5px"><div style="height:2px;width:${r.p}%;background:${i===0?'rgba(255,255,255,.6)':'var(--ink)'};border-radius:1px"></div></div><div style="font-size:10px;color:${i===0?'rgba(250,250,247,.55)':'var(--muted)'};margin-top:2px">${r.v} Stimmen · ${r.p}%</div></div>`;
+      d.innerHTML=`<span style="font-size:20px;width:28px;text-align:center;flex-shrink:0">${icon}</span><div style="flex:1"><div style="font-size:13px;font-weight:500">${r.text}</div><div style="height:2px;background:${i===0?'rgba(255,255,255,.2)':'var(--border)'};border-radius:1px;margin-top:5px"><div style="height:2px;width:${r.pct}%;background:${i===0?'rgba(255,255,255,.6)':'var(--ink)'};border-radius:1px;transition:width .5s ease"></div></div><div style="font-size:10px;color:${i===0?'rgba(250,250,247,.55)':'var(--muted)'};margin-top:3px">${r.count} Stimme${r.count!==1?'n':''} · ${r.pct}%</div></div>`;
       area.appendChild(d);
     });
   },350);
 }
 
+function tallyVotes(votes,opts){
+  const counts=new Array(opts.length).fill(0);
+  Object.values(votes).forEach(v=>{if(counts[v]!==undefined)counts[v]++;});
+  const total=Math.max(Object.keys(votes).length,1);
+  return opts.map((opt,i)=>({text:opt,count:counts[i],pct:Math.round(counts[i]/total*100)}));
+}
+
+function copyRoomLink(){
+  const url=document.getElementById('sp2-share-url').textContent;
+  if(navigator.share){navigator.share({title:'Splitly',text:'Stimme mit ab!',url}).catch(()=>{});}
+  else{navigator.clipboard.writeText(url).catch(()=>{});showToast('Link kopiert ✓');}
+}
+
 // ── BILL SPLIT ────────────────────────────────────────────
-const PEOPLE=[
-  {init:'JO',name:'Josua',bg:'#FEE',color:'var(--red)',items:'🍕 Pizza · 🍺 Bier',own:28.50},
-  {init:'LA',name:'Laura',bg:'var(--green-light)',color:'var(--green)',items:'🥗 Salat · 💧 Wasser',own:18.00},
-  {init:'MI',name:'Mike',bg:'var(--amber-light)',color:'var(--amber)',items:'🍝 Pasta · 🍷 Wein',own:26.50},
-  {init:'SO',name:'Sophie',bg:'var(--blue-light)',color:'var(--blue)',items:'🍔 Burger · 🍹 Cocktail',own:21.00},
+const PERSON_COLORS=[
+  ['#FEE','var(--red)'],['var(--green-light)','var(--green)'],
+  ['var(--amber-light)','var(--amber)'],['var(--blue-light)','var(--blue)'],
+  ['var(--stone)','var(--ink)'],['#EEF3FF','var(--blue)']
 ];
-const ITEMS=[
-  {e:'🍕',name:'Pizza Margherita',who:'Josua',price:18.00},
-  {e:'🍺',name:'Bier',who:'Josua',price:10.50},
-  {e:'🥗',name:'Caesar Salad',who:'Laura',price:16.00},
-  {e:'💧',name:'Wasser',who:'Laura',price:2.00},
-  {e:'🍝',name:'Pasta Carbonara',who:'Mike',price:19.00},
-  {e:'🍷',name:'Wein',who:'Mike',price:7.50},
-  {e:'🍔',name:'Cheeseburger',who:'Sophie',price:21.00},
-];
+let PEOPLE=[];
 let splitMethod='equal';
+
+function addPerson(){
+  const inp=document.getElementById('person-name-inp');
+  const name=inp.value.trim();
+  if(!name)return;
+  if(PEOPLE.find(p=>p.name.toLowerCase()===name.toLowerCase())){showToast('Name bereits vorhanden.');return;}
+  const[bg,color]=PERSON_COLORS[PEOPLE.length%PERSON_COLORS.length];
+  const init=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  PEOPLE.push({init,name,bg,color,own:0});
+  inp.value='';
+  renderPeople();
+}
+
+function removePerson(idx){
+  PEOPLE.splice(idx,1);
+  renderPeople();
+}
+
 function selMethod(m,el){
   splitMethod=m;
   document.querySelectorAll('#method-row > div').forEach(d=>{
@@ -536,32 +610,35 @@ function selMethod(m,el){
   });
   el.style.border='1.5px solid var(--ink)';el.style.background='var(--stone)';
   el.querySelector('div:last-child').style.color='var(--ink)';
-  calcSplit();
+  renderPeople();
 }
-function calcSplit(){
-  const total=parseFloat(document.getElementById('total-inp').value)||0;
-  const per=(total/PEOPLE.length).toFixed(2);
-  document.querySelectorAll('.person-amt').forEach((el,i)=>{
-    el.textContent='CHF '+(splitMethod==='equal'?per:PEOPLE[i].own.toFixed(2));
-  });
-}
+
+function calcSplit(){renderPeople();}
+
 function renderPeople(){
   const list=document.getElementById('people-list');
   if(!list)return;list.innerHTML='';
-  const total=parseFloat(document.getElementById('total-inp')?.value)||94;
-  const per=(total/PEOPLE.length).toFixed(2);
+  if(PEOPLE.length===0){
+    list.innerHTML='<div style="text-align:center;padding:16px;font-size:12px;color:var(--muted)">Noch keine Personen hinzugefügt</div>';
+    return;
+  }
+  const total=parseFloat(document.getElementById('total-inp')?.value)||0;
+  const per=PEOPLE.length?total/PEOPLE.length:0;
   PEOPLE.forEach((p,i)=>{
     const d=document.createElement('div');
     d.style.cssText='background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:7px;display:flex;align-items:center;gap:10px';
-    d.innerHTML=`<div style="width:36px;height:36px;border-radius:50%;background:${p.bg};color:${p.color};font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${p.init}</div><div style="flex:1"><div style="font-size:13px;font-weight:500">${p.name}</div><div style="font-size:10px;color:var(--muted);margin-top:1px">${p.items}</div></div><div class="person-amt" style="font-family:var(--serif);font-size:18px;font-weight:600">CHF ${splitMethod==='equal'?per:p.own.toFixed(2)}</div>`;
+    d.innerHTML=`<div style="width:36px;height:36px;border-radius:50%;background:${p.bg};color:${p.color};font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${p.init}</div><div style="flex:1"><div style="font-size:13px;font-weight:500">${p.name}</div></div><div class="person-amt" style="font-family:var(--serif);font-size:18px;font-weight:600;margin-right:8px">CHF ${per.toFixed(2)}</div><button onclick="removePerson(${i})" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--muted);padding:2px 6px;line-height:1">×</button>`;
     list.appendChild(d);
   });
 }
-function gbs(n){
+
+async function gbs(n){
   document.getElementById('bs1').style.display=n===1?'block':'none';
   document.getElementById('bs2').style.display=n===2?'block':'none';
   if(n===2){
+    if(PEOPLE.length===0){showToast('Bitte mindestens eine Person hinzufügen.');gbs(1);return;}
     document.getElementById('bs2').classList.add('fade-up');
+    document.getElementById('bill-share-url-block').style.display='none';
     const total=parseFloat(document.getElementById('total-inp').value)||0;
     const per=(total/PEOPLE.length).toFixed(2);
     document.getElementById('bs-total-display').textContent=`CHF ${total.toFixed(2)} total`;
@@ -570,23 +647,49 @@ function gbs(n){
     PEOPLE.forEach((p,i)=>{
       const d=document.createElement('div');
       d.style.cssText=`display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:${i<PEOPLE.length-1?'1px solid rgba(255,255,255,.15)':'none'};font-size:13px`;
-      const amt=splitMethod==='equal'?per:p.own.toFixed(2);
-      d.innerHTML=`<div><div>${p.name}</div><div style="font-size:10px;opacity:.55;margin-top:1px">${p.items}</div></div><div style="font-family:var(--serif);font-size:17px;font-weight:600">CHF ${amt}</div>`;
+      d.innerHTML=`<div style="font-weight:500">${p.name}</div><div style="font-family:var(--serif);font-size:17px;font-weight:600">CHF ${per}</div>`;
       rp.appendChild(d);
     });
     const il=document.getElementById('items-list');il.innerHTML='';
-    const displayItems = scannedItems.length > 0 ? scannedItems.map(i=>({e:i.emoji||'🧾',name:i.name,who:'—',price:parseFloat(i.price)||0})) : ITEMS;
-    displayItems.forEach(item=>{
-      const d=document.createElement('div');
-      d.style.cssText='background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:11px 14px;margin-bottom:6px;display:flex;align-items:center;gap:10px';
-      d.innerHTML=`<span style="font-size:18px;width:24px;text-align:center;flex-shrink:0">${item.e}</span><div style="flex:1"><div style="font-size:13px;font-weight:500">${item.name}</div><div style="font-size:10px;color:var(--muted);margin-top:1px">${item.who}</div></div><div style="font-size:13px;font-weight:600">CHF ${item.price.toFixed(2)}</div>`;
-      il.appendChild(d);
-    });
+    const displayItems=scannedItems.length>0?scannedItems.map(i=>({e:i.emoji||'🧾',name:i.name,who:'—',price:parseFloat(i.price)||0})):[];
+    if(displayItems.length===0){
+      il.innerHTML='<div style="font-size:12px;color:var(--muted);text-align:center;padding:10px">Keine Artikel gescannt</div>';
+    }else{
+      displayItems.forEach(item=>{
+        const d=document.createElement('div');
+        d.style.cssText='background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:11px 14px;margin-bottom:6px;display:flex;align-items:center;gap:10px';
+        d.innerHTML=`<span style="font-size:18px;width:24px;text-align:center;flex-shrink:0">${item.e}</span><div style="flex:1;font-size:13px;font-weight:500">${item.name}</div><div style="font-size:13px;font-weight:600">CHF ${parseFloat(item.price).toFixed(2)}</div>`;
+        il.appendChild(d);
+      });
+    }
+    // Save bill to Supabase
+    if(sb&&SUPABASE_URL!=='YOUR_SUPABASE_URL'){
+      const code=Math.random().toString(36).substring(2,8).toUpperCase();
+      await sb.from('bills').insert({
+        code,title:'Abrechnung',total,method:splitMethod,
+        people:PEOPLE,items:displayItems,created_by:currentUser?.id||null
+      }).select().single();
+      window._billCode=code;
+    }
+  }
+  if(n===1){document.getElementById('bill-share-url-block').style.display='none';}
+}
+
+async function shareBill(){
+  const code=window._billCode;
+  let url=window.location.href;
+  if(code)url=`${window.location.origin}?bill=${code}`;
+  if(navigator.share){
+    navigator.share({title:'Splitly – Abrechnung',text:'Schau dir unsere Abrechnung an!',url}).catch(()=>{});
+  }else{
+    await navigator.clipboard.writeText(url).catch(()=>{});
+    document.getElementById('bill-share-url').textContent=url;
+    document.getElementById('bill-share-url-block').style.display='block';
   }
 }
+
 function billBack(){
-  const bs2=document.getElementById('bs2');
-  if(bs2.style.display==='block'){gbs(1);}else{nav('home');}
+  if(document.getElementById('bs2').style.display==='block'){gbs(1);}else{nav('home');}
 }
 
 // ── PRO ───────────────────────────────────────────────────
@@ -761,6 +864,8 @@ async function initAuth(){
   }
 }
 
+let userProfile=null;
+
 function showMainApp(){
   document.getElementById('s-auth').classList.remove('on');
   document.getElementById('s-home').classList.add('on');
@@ -769,6 +874,92 @@ function showMainApp(){
   document.getElementById('user-avatar-btn').textContent=initials;
   document.getElementById('user-sheet-av').textContent=initials;
   document.getElementById('user-sheet-email').textContent=email;
+  loadProfile();
+  handleURLParams();
+}
+
+async function loadProfile(){
+  if(!sb||!currentUser)return;
+  const{data}=await sb.from('profiles').select('*').eq('id',currentUser.id).single();
+  if(data){
+    userProfile=data;
+    const isPro=data.is_pro&&(!data.pro_until||new Date(data.pro_until)>new Date());
+    if(isPro){
+      document.getElementById('user-sheet-badge').textContent='Pro ✦';
+      document.getElementById('user-sheet-badge').style.color='var(--green-mid)';
+      // Hide decision limit bar for Pro users
+      const limitBar=document.getElementById('sp-limit')?.closest('[style*="background:var(--stone)"]');
+      if(limitBar)limitBar.style.display='none';
+    }else{
+      const today=new Date().toISOString().split('T')[0];
+      const count=data.decisions_reset===today?data.decisions_today:0;
+      document.getElementById('sp-limit').textContent=`${count} von 10 Entscheiden heute`;
+    }
+  }
+}
+
+async function checkDecisionLimit(){
+  if(!sb||!currentUser||SUPABASE_URL==='YOUR_SUPABASE_URL')return true;
+  if(!userProfile)await loadProfile();
+  if(!userProfile)return true;
+  const isPro=userProfile.is_pro&&(!userProfile.pro_until||new Date(userProfile.pro_until)>new Date());
+  if(isPro)return true;
+  const today=new Date().toISOString().split('T')[0];
+  let count=userProfile.decisions_today||0;
+  if(userProfile.decisions_reset!==today){
+    await sb.from('profiles').update({decisions_today:0,decisions_reset:today}).eq('id',currentUser.id);
+    userProfile.decisions_today=0;count=0;
+  }
+  if(count>=10){
+    showToast('Tageslimit erreicht — upgrade auf Pro!');
+    setTimeout(()=>nav('pro'),1200);
+    return false;
+  }
+  return true;
+}
+
+async function incrementDecisions(){
+  if(!sb||!currentUser||!userProfile)return;
+  const isPro=userProfile.is_pro&&(!userProfile.pro_until||new Date(userProfile.pro_until)>new Date());
+  if(isPro)return;
+  const today=new Date().toISOString().split('T')[0];
+  const newCount=(userProfile.decisions_reset===today?userProfile.decisions_today:0)+1;
+  await sb.from('profiles').update({decisions_today:newCount,decisions_reset:today}).eq('id',currentUser.id);
+  userProfile.decisions_today=newCount;
+  document.getElementById('sp-limit').textContent=`${newCount} von 10 Entscheiden heute`;
+}
+
+async function handleURLParams(){
+  if(!sb||SUPABASE_URL==='YOUR_SUPABASE_URL')return;
+  const params=new URLSearchParams(window.location.search);
+  const roomCode=params.get('room');
+  const billCode=params.get('bill');
+  if(roomCode){
+    const{data}=await sb.from('rooms').select('*').eq('code',roomCode).single();
+    if(data){
+      currentRoom=data;
+      window._spOpts=data.options;
+      nav('split');
+      document.getElementById('sp1').style.display='none';
+      document.getElementById('sp2').style.display='block';
+      document.getElementById('sp2').classList.add('fade-up');
+      document.getElementById('sp2-q').textContent=data.question;
+      document.getElementById('sp2-share-block').style.display='none';
+      document.getElementById('sp2-name-section').style.display='block';
+      document.getElementById('sp2-vote-section').style.display='none';
+      voted=false;
+    }else{showToast('Abstimmung nicht gefunden oder abgelaufen.');}
+  } else if(billCode){
+    const{data}=await sb.from('bills').select('*').eq('code',billCode).single();
+    if(data){
+      nav('bill');
+      // Restore bill data
+      PEOPLE=data.people||[];
+      document.getElementById('total-inp').value=data.total||0;
+      splitMethod=data.method||'equal';
+      await gbs(2);
+    }else{showToast('Abrechnung nicht gefunden.');}
+  }
 }
 
 async function authSubmit(){

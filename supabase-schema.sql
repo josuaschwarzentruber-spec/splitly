@@ -61,8 +61,9 @@ create policy "Rooms are publicly readable"
 create policy "Authenticated users can create rooms"
   on public.rooms for insert with check (auth.uid() is not null);
 
-create policy "Room creator can update"
-  on public.rooms for update using (auth.uid() = created_by);
+-- Anyone with the room code can vote (code acts as the access token)
+create policy "Anyone can vote in a room"
+  on public.rooms for update using (true) with check (true);
 
 -- Enable realtime for live voting
 alter publication supabase_realtime add table public.rooms;
